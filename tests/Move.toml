@@ -1,0 +1,11 @@
+[package]
+name = "aptpays"
+version = "0.0.1"
+authors = ["Parth Kairamkonda"]
+upgrade_policy = "compatible"
+
+[addresses]
+aptpays = "_"
+
+[dependencies]
+AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-framework", rev = "mainnet" }

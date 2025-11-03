@@ -43,57 +43,35 @@ module aptpays::calendar_payments {
     struct Executed has copy, drop, store { id: u64, recipient: address, amount: u64, executed_at: u64, remaining: u64 }
     struct Canceled has copy, drop, store { id: u64, refunded: u64 }
 
-    /// Create a one-time payment to execute at or after `execute_at_secs`.
-    /// Escrows `amount` APT immediately from the payer.
-    public entry fun create_one_time(
+    /// Create a payment schedule (handles both one-time and recurring)
+    /// For one-time: set interval_secs = 0, occurrences = 1
+    /// For recurring: set interval_secs > 0, occurrences > 1
+    /// Escrows total amount immediately (amount * occurrences)
+    public entry fun create_schedule(
         payer: &signer,
         recipient: address,
         amount: u64,
-        execute_at_secs: u64
-    ) acquires Schedules {
-        assert!(amount > 0, E_INVALID_PARAMS);
-    let now = timestamp::now_seconds();
-        assert!(execute_at_secs >= now, E_INVALID_PARAMS);
-
-    let escrow = coin::withdraw<AptosCoin>(payer, amount);
-    let _ = add_schedule_internal(
-            payer,
-            recipient,
-            amount,
-            execute_at_secs,
-            /* interval */ 0,
-            /* occurrences */ 1,
-            escrow
-        );
-        // emit Created as part of add_schedule_internal
-        // return id (events only); clients can read from event or track next_id-1
-    }
-
-    /// Create a recurring payment starting at `first_exec_secs`, repeating every `interval_secs`.
-    /// Escrows `amount * occurrences` APT immediately.
-    public entry fun create_recurring(
-        payer: &signer,
-        recipient: address,
-        amount: u64,
-        first_exec_secs: u64,
+        execute_at_secs: u64,
         interval_secs: u64,
         occurrences: u64
     ) acquires Schedules {
         assert!(amount > 0, E_INVALID_PARAMS);
-        assert!(interval_secs > 0, E_INVALID_PARAMS);
         assert!(occurrences > 0, E_INVALID_PARAMS);
-    let now = timestamp::now_seconds();
-        assert!(first_exec_secs >= now, E_INVALID_PARAMS);
+        let now = timestamp::now_seconds();
+        assert!(execute_at_secs >= now, E_INVALID_PARAMS);
 
-        // total = amount * occurrences (basic overflow-safe check)
-    let total = amount * occurrences;
-        // If multiplication overflows, Move aborts; that's fine.
-    let escrow = coin::withdraw<AptosCoin>(payer, total);
-    let _ = add_schedule_internal(
+        // For recurring, interval must be > 0
+        if (occurrences > 1) {
+            assert!(interval_secs > 0, E_INVALID_PARAMS);
+        };
+
+        let total = amount * occurrences;
+        let escrow = coin::withdraw<AptosCoin>(payer, total);
+        let _ = add_schedule_internal(
             payer,
             recipient,
             amount,
-            first_exec_secs,
+            execute_at_secs,
             interval_secs,
             occurrences,
             escrow
@@ -166,22 +144,6 @@ module aptpays::calendar_payments {
             &mut schedules.executed_events,
             Executed { id: schedule_id, recipient: s.recipient, amount: s.amount, executed_at: now, remaining: s.remaining_occurrences }
         );
-    }
-
-    // View: returns (next_id, active_count)
-    #[view]
-    public fun get_summary(payer_addr: address): (u64, u64) acquires Schedules {
-    if (!exists<Schedules>(payer_addr)) { return (0, 0) };
-    let s = borrow_global<Schedules>(payer_addr);
-        let total = vector::length(&s.entries);
-        let active = 0;
-        let i = 0;
-        while (i < total) {
-            let e_ref = vector::borrow(&s.entries, i);
-            if (e_ref.schedule.active) { active = active + 1 };
-            i = i + 1;
-        };
-        (s.next_id, active)
     }
 
     // View: returns (recipient, amount, next_exec_secs, interval_secs, remaining, active)

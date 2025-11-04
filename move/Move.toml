@@ -1,0 +1,14 @@
+[package]
+name = "AptPays"
+version = "0.1.0"
+authors = ["AptPays Team"]
+
+[addresses]
+aptpays_addr = "0x0f9713e3c42951dbc4f05cc2e7ea211c1851b00a9d077e7e71f5d2a73041d606"
+
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "mainnet"
+subdir = "aptos-move/framework/aptos-framework"
+
+[dev-dependencies]

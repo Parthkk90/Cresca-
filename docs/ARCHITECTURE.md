@@ -18,20 +18,25 @@ AptPays is a **mobile-first DeFi super app** on Aptos blockchain that combines:
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                      APTPAYS PLATFORM                        │
+│                    "Your DeFi Super Wallet"                  │
 │                                                              │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
-│  │   Bucket    │  │  CalendeFi  │  │  Tap-to-Pay │        │
-│  │  Protocol   │  │   Payments  │  │   Wallet    │        │
-│  │             │  │             │  │             │        │
-│  │  Leveraged  │  │  Scheduled  │  │   Instant   │        │
-│  │  Trading    │  │  Payments   │  │  Transfers  │        │
-│  │  (1-20x)    │  │  (Auto)     │  │   (P2P)     │        │
-│  └─────────────┘  └─────────────┘  └─────────────┘        │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
+│  │   Wallet     │  │    Swap      │  │  Tap-to-Pay  │     │
+│  │   Balance    │  │   Exchange   │  │   Transfer   │     │
+│  │              │  │              │  │              │     │
+│  │  5.99928 APT │  │  BTC ↔ ETH  │  │    Instant   │     │
+│  │   Send/Recv  │  │  Real-time   │  │     P2P      │     │
+│  │    QR Code   │  │   Pricing    │  │   Payments   │     │
+│  └──────────────┘  └──────────────┘  └──────────────┘     │
 │                                                              │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │            SWAP/DEX (Future)                        │   │
-│  │            Token Exchange & Liquidity               │   │
-│  └─────────────────────────────────────────────────────┘   │
+│  ┌──────────────┐  ┌──────────────┐                        │
+│  │   Bucket     │  │  CalendeFi   │                        │
+│  │  Protocol    │  │   Payments   │                        │
+│  │              │  │              │                        │
+│  │  Leveraged   │  │  Scheduled   │                        │
+│  │   Trading    │  │   Payments   │                        │
+│  │   (1-20x)    │  │   (Auto)     │                        │
+│  └──────────────┘  └──────────────┘                        │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -49,8 +54,9 @@ AptPays is a **mobile-first DeFi super app** on Aptos blockchain that combines:
 │  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
 │  ┃                    Jetpack Compose UI                      ┃ │
 │  ┃  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐    ┃ │
-│  ┃  │Dashboard │ │ Trading  │ │ Calendar │ │  Wallet  │    ┃ │
-│  ┃  │  Screen  │ │  Screen  │ │  Screen  │ │  Screen  │    ┃ │
+│  ┃  │Dashboard │ │   Swap   │ │ Trading  │ │ Calendar │    ┃ │
+│  ┃  │  Wallet  │ │  Screen  │ │  Screen  │ │  Screen  │    ┃ │
+│  ┃  │  Screen  │ │  (DEX)   │ │ (Bucket) │ │(CalendeFi)│   ┃ │
 │  ┃  └──────────┘ └──────────┘ └──────────┘ └──────────┘    ┃ │
 │  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ │
 │                              ↕                                  │
@@ -225,7 +231,112 @@ AptPays is a **mobile-first DeFi super app** on Aptos blockchain that combines:
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### **2. Calendar Payments Architecture**
+### **2. Swap/DEX Architecture**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│            SWAP/DEX SMART CONTRACT                           │
+│         Address: TBD (To Be Deployed)                       │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                      DATA STRUCTURES                         │
+│                                                              │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │ LiquidityPool (key)                                 │    │
+│  │ ├─ token_a: TypeInfo                               │    │
+│  │ ├─ token_b: TypeInfo                               │    │
+│  │ ├─ reserve_a: u64                                  │    │
+│  │ ├─ reserve_b: u64                                  │    │
+│  │ ├─ total_lp_tokens: u64                            │    │
+│  │ └─ fee_percent: u64  (0.3% = 30)                  │    │
+│  └────────────────────────────────────────────────────┘    │
+│                                                              │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │ SwapTransaction (store)                             │    │
+│  │ ├─ user: address                                   │    │
+│  │ ├─ token_in: string                                │    │
+│  │ ├─ token_out: string                               │    │
+│  │ ├─ amount_in: u64                                  │    │
+│  │ ├─ amount_out: u64                                 │    │
+│  │ ├─ exchange_rate: u64                              │    │
+│  │ ├─ network_fee: u64                                │    │
+│  │ ├─ timestamp: u64                                  │    │
+│  │ └─ tx_hash: vector<u8>                             │    │
+│  └────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                    ENTRY FUNCTIONS                           │
+│                                                              │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │ create_pool<TokenA, TokenB>(                       │    │
+│  │   signer,                                          │    │
+│  │   amount_a: u64,                                   │    │
+│  │   amount_b: u64                                    │    │
+│  │ )                                                   │    │
+│  │   • Creates new liquidity pool                     │    │
+│  │   • Deposits initial liquidity                     │    │
+│  │   • Mints LP tokens                                │    │
+│  └────────────────────────────────────────────────────┘    │
+│                      ↓                                       │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │ swap_exact_input<TokenIn, TokenOut>(               │    │
+│  │   signer,                                          │    │
+│  │   amount_in: u64,                                  │    │
+│  │   min_amount_out: u64                              │    │
+│  │ )                                                   │    │
+│  │   • Validates slippage                             │    │
+│  │   • Calculates amount_out using AMM formula        │    │
+│  │   • Formula: amount_out = (amount_in * reserve_out)│    │
+│  │              / (reserve_in + amount_in)            │    │
+│  │   • Applies 0.3% fee                               │    │
+│  │   • Executes swap                                  │    │
+│  │   • Updates reserves                               │    │
+│  │   • Emits SwapExecuted event                       │    │
+│  └────────────────────────────────────────────────────┘    │
+│                      ↓                                       │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │ add_liquidity<TokenA, TokenB>(                     │    │
+│  │   signer,                                          │    │
+│  │   amount_a: u64,                                   │    │
+│  │   amount_b: u64                                    │    │
+│  │ )                                                   │    │
+│  │   • Adds liquidity to existing pool                │    │
+│  │   • Maintains price ratio                          │    │
+│  │   • Mints proportional LP tokens                   │    │
+│  └────────────────────────────────────────────────────┘    │
+│                      ↓                                       │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │ remove_liquidity<TokenA, TokenB>(                  │    │
+│  │   signer,                                          │    │
+│  │   lp_tokens: u64                                   │    │
+│  │ )                                                   │    │
+│  │   • Burns LP tokens                                │    │
+│  │   • Returns proportional reserves                  │    │
+│  └────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                     VIEW FUNCTIONS                           │
+│                                                              │
+│  • get_quote(amount_in, reserve_in, reserve_out) → u64      │
+│  • get_pool_info(token_a, token_b) → (u64, u64, u64)       │
+│  • get_exchange_rate(token_a, token_b) → u64               │
+│  • calculate_price_impact(amount_in) → u64                  │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                    SUPPORTED PAIRS                           │
+│                                                              │
+│  • APT ↔ USDC        • BTC ↔ ETH                           │
+│  • APT ↔ USDT        • BTC ↔ USDC                          │
+│  • BTC ↔ APT         • ETH ↔ USDC                          │
+│  • ETH ↔ APT         • SOL ↔ APT                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### **3. Calendar Payments Architecture**
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -627,7 +738,148 @@ AptPays is a **mobile-first DeFi super app** on Aptos blockchain that combines:
 └─────────────┘
 ```
 
-### **3. Tap-to-Pay Flow**
+### **3. Swap/Exchange Flow**
+
+```
+┌─────────────┐
+│    USER     │
+│  (Trader)   │
+└──────┬──────┘
+       │ 1. Open Swap Screen
+       ↓
+┌──────────────────────────────┐
+│      SwapScreen.kt           │
+│ ┌──────────────────────────┐│
+│ │ You pay                  ││
+│ │ ┌─────┐  0.055227016 BTC ││
+│ │ │ BTC │  ≈ $6206.85      ││
+│ │ └─────┘                  ││
+│ │         ⇅                ││
+│ │ You receive              ││
+│ │ ┌─────┐  1.558 ETH       ││
+│ │ │ ETH │  ≈ $6206.85      ││
+│ │ └─────┘                  ││
+│ │                          ││
+│ │ Exchange Rate            ││
+│ │ 1 BTC = 28.21 ETH  📈   ││
+│ │                          ││
+│ │ Network Fee: ~$0.01      ││
+│ │ Est. Time: ~30 seconds   ││
+│ │                          ││
+│ │ [Review Swap]            ││
+│ └──────────────────────────┘│
+└──────┬───────────────────────┘
+       │ 2. viewModel.getQuote(BTC, ETH, amount)
+       ↓
+┌──────────────────────────────┐
+│    SwapViewModel             │
+│ • Fetch real-time prices     │
+│ • Calculate exchange rate    │
+│ • Estimate network fee       │
+│ • Check slippage             │
+└──────┬───────────────────────┘
+       │ 3. repository.getQuote()
+       ↓
+┌─────────────────────────────────────────────┐
+│         Aptos Blockchain                     │
+│  ┌───────────────────────────────────────┐  │
+│  │ swap_dex::get_quote()                 │  │
+│  │ • Read pool reserves                  │  │
+│  │ • Calculate: amount_out =             │  │
+│  │   (amount_in * 997 * reserve_out)     │  │
+│  │   / (reserve_in * 1000 + amount_in*997│  │
+│  │ • Return quote                        │  │
+│  └───────────────────────────────────────┘  │
+└─────────────────────────────────────────────┘
+       │ 4. Quote returned
+       ↓
+┌──────────────────────────────┐
+│    SwapScreen.kt             │
+│ • Display exchange rate      │
+│ • Show estimated output      │
+│ • User taps "Review Swap"    │
+└──────┬───────────────────────┘
+       │ 5. viewModel.executeSwap(BTC, ETH, amount, min_out)
+       ↓
+┌──────────────────────────────┐
+│    SwapViewModel             │
+│ • Build swap transaction     │
+│ • Set slippage tolerance 1%  │
+└──────┬───────────────────────┘
+       │ 6. repository.swap()
+       ↓
+┌──────────────────────────────┐
+│   SwapRepository             │
+│ • Build EntryFunction        │
+│ • swap_exact_input<BTC,ETH>  │
+└──────┬───────────────────────┘
+       │ 7. Submit transaction
+       ↓
+┌─────────────────────────────────────────────┐
+│         Aptos Blockchain                     │
+│  ┌───────────────────────────────────────┐  │
+│  │ swap_dex::swap_exact_input            │  │
+│  │                                       │  │
+│  │ 1. Validate slippage:                 │  │
+│  │    assert!(amount_out >= min_out)     │  │
+│  │                                       │  │
+│  │ 2. Transfer BTC from user to pool:   │  │
+│  │    coin::transfer<BTC>(               │  │
+│  │      user, pool, 0.055227016         │  │
+│  │    )                                  │  │
+│  │                                       │  │
+│  │ 3. Calculate output:                  │  │
+│  │    amount_out = (0.055227016 * 997 * │  │
+│  │      reserve_eth) / (reserve_btc *   │  │
+│  │      1000 + 0.055227016 * 997)       │  │
+│  │    = 1.558 ETH                       │  │
+│  │                                       │  │
+│  │ 4. Transfer ETH from pool to user:   │  │
+│  │    coin::transfer<ETH>(               │  │
+│  │      pool, user, 1.558               │  │
+│  │    )                                  │  │
+│  │                                       │  │
+│  │ 5. Update pool reserves:              │  │
+│  │    reserve_btc += 0.055227016         │  │
+│  │    reserve_eth -= 1.558               │  │
+│  │                                       │  │
+│  │ 6. Emit SwapExecuted event            │  │
+│  └───────────────────────────────────────┘  │
+└─────────────────────────────────────────────┘
+       │ 8. Transaction success
+       ↓
+┌──────────────────────────────┐
+│    SwapViewModel             │
+│ • _uiState.value = Success   │
+│ • Update balances            │
+└──────┬───────────────────────┘
+       │ 9. StateFlow emission
+       ↓
+┌──────────────────────────────┐
+│    SwapScreen.kt             │
+│ ┌──────────────────────────┐│
+│ │ ✅ Swap Successful!      ││
+│ │                          ││
+│ │ Swapped:                 ││
+│ │ 0.055227016 BTC          ││
+│ │         ↓                ││
+│ │ 1.558 ETH                ││
+│ │                          ││
+│ │ Tx: 0xabc123...          ││
+│ │ Fee: $0.01               ││
+│ │ Time: 2.3 seconds        ││
+│ └──────────────────────────┘│
+└──────┬───────────────────────┘
+       │ 10. Success feedback
+       ↓
+┌─────────────┐
+│    USER     │
+│ ✅ Swap     │
+│  Complete   │
+└─────────────┘
+```
+
+### **4. Tap-to-Pay Flow**
 
 ```
 ┌─────────────┐

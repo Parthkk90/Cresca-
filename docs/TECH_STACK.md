@@ -3,10 +3,11 @@
 ## 📱 **Platform Overview**
 
 AptPays is a comprehensive DeFi mobile platform on Aptos blockchain offering:
-- 💰 **Bucket Protocol** - Leveraged crypto basket trading
-- 📅 **CalendeFi** - Scheduled crypto payments
-- 🔄 **Swap Function** - Token exchange
-- 💸 **Tap-to-Pay** - Send/Receive APT instantly
+- 💰 **Wallet Dashboard** - View balance, send/receive APT, manage assets
+- 🔄 **Swap/DEX** - Real-time token exchange (BTC ↔ ETH, APT ↔ USDC)
+- 💸 **Tap-to-Pay** - Instant P2P transfers with QR code
+- 📊 **Bucket Protocol** - Leveraged crypto basket trading (1-20x)
+- 📅 **CalendeFi** - Scheduled & recurring crypto payments
 
 ---
 

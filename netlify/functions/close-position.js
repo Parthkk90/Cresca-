@@ -64,7 +64,7 @@ exports.handler = async (event, context) => {
     // Verify position exists and belongs to user
     const resource = await aptos.getAccountResource({
       accountAddress: CONTRACT_ADDRESS,
-      resourceType: `${CONTRACT_ADDRESS}::cresca_contract::ProtocolState`
+      resourceType: `${CONTRACT_ADDRESS}::bucket_protocol::Protocol`
     });
 
     const position = resource.positions?.find(
@@ -102,7 +102,7 @@ exports.handler = async (event, context) => {
       sender: userAddress,
       secondarySignerAddresses: [protocolAccount.accountAddress],
       data: {
-        function: `${CONTRACT_ADDRESS}::cresca_contract::close_position`,
+        function: `${CONTRACT_ADDRESS}::bucket_protocol::close_position`,
         functionArguments: [parseInt(positionId)],
       },
       options: {

@@ -1,0 +1,20 @@
+[build]
+  functions = "netlify/functions"
+  publish = "public"
+  command = ""
+
+[functions]
+  node_bundler = "esbuild"
+  included_files = ["backend/node_modules/@aptos-labs/**"]
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+[[headers]]
+  for = "/*"
+    [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"

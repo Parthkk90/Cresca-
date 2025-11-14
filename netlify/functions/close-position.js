@@ -45,29 +45,38 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { positionId, userAddress, userSignature } = JSON.parse(event.body);
+    const { positionId, userAddress, userSignatureHex } = JSON.parse(event.body);
 
-    // If user signature is provided, submit the full transaction
-    if (userSignature) {
-      // Reconstruct authenticators and submit
+    // If user signature is provided, complete and submit the transaction
+    if (userSignatureHex) {
       const {Ed25519PublicKey, Ed25519Signature, AccountAuthenticatorEd25519} = require('@aptos-labs/ts-sdk');
       
-      // Deserialize raw transaction
-      const rawTxnBytes = new Uint8Array(Buffer.from(userSignature.rawTransaction, 'hex'));
-      const {RawTransaction, Deserializer} = require('@aptos-labs/ts-sdk');
-      const rawTxn = RawTransaction.deserialize(new Deserializer(rawTxnBytes));
+      // Rebuild the same transaction (must match exactly what was sent to user)
+      const rawTxn = await aptos.transaction.build.multiAgent({
+        sender: userAddress,
+        secondarySignerAddresses: [protocolAccount.accountAddress],
+        data: {
+          function: `${CONTRACT_ADDRESS}::bucket_protocol::close_position`,
+          functionArguments: [parseInt(positionId)],
+        },
+        options: {
+          // Use a longer expiration to ensure it matches
+          expireTimestamp: Math.floor(Date.now() / 1000) + 600,
+        }
+      });
       
-      // Reconstruct user authenticator
-      const userPubKey = new Ed25519PublicKey(new Uint8Array(Buffer.from(userSignature.publicKey, 'hex')));
-      const userSig = new Ed25519Signature(new Uint8Array(Buffer.from(userSignature.signature, 'hex')));
+      // Reconstruct user authenticator from signature
+      const userPubKey = new Ed25519PublicKey(new Uint8Array(Buffer.from(userSignatureHex.publicKey, 'hex')));
+      const userSig = new Ed25519Signature(new Uint8Array(Buffer.from(userSignatureHex.signature, 'hex')));
       const userAuth = new AccountAuthenticatorEd25519(userPubKey, userSig);
       
-      // Reconstruct protocol authenticator
-      const protocolPubKey = new Ed25519PublicKey(new Uint8Array(Buffer.from(userSignature.protocolPublicKey, 'hex')));
-      const protocolSig = new Ed25519Signature(new Uint8Array(Buffer.from(userSignature.protocolSignature, 'hex')));
-      const protocolAuth = new AccountAuthenticatorEd25519(protocolPubKey, protocolSig);
+      // Sign with protocol account
+      const protocolAuth = aptos.transaction.sign({
+        signer: protocolAccount,
+        transaction: rawTxn
+      });
       
-      // Submit transaction
+      // Submit multi-agent transaction
       const txResponse = await aptos.transaction.submit.multiAgent({
         transaction: rawTxn,
         senderAuthenticator: userAuth,

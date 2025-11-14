@@ -45,59 +45,9 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { positionId, userAddress, userSignatureHex, rawTransactionHex } = JSON.parse(event.body);
+    const { positionId, userAddress, rawTransaction } = JSON.parse(event.body);
 
-    // If user signature is provided, complete and submit the transaction
-    if (userSignatureHex && rawTransactionHex) {
-      const {Ed25519PublicKey, Ed25519Signature, AccountAuthenticatorEd25519, RawTransaction, Deserializer, MultiAgentRawTransaction, AccountAddress} = require('@aptos-labs/ts-sdk');
-      
-      // Deserialize the SAME raw transaction that user signed
-      const rawTxnBytes = new Uint8Array(Buffer.from(rawTransactionHex, 'hex'));
-      const rawTxn = RawTransaction.deserialize(new Deserializer(rawTxnBytes));
-      
-      // Create multi-agent transaction wrapper
-      const multiAgentTxn = new MultiAgentRawTransaction(
-        rawTxn,
-        [AccountAddress.from(protocolAccount.accountAddress)]
-      );
-      
-      // Reconstruct user authenticator from signature
-      const userPubKey = new Ed25519PublicKey(new Uint8Array(Buffer.from(userSignatureHex.publicKey, 'hex')));
-      const userSig = new Ed25519Signature(new Uint8Array(Buffer.from(userSignatureHex.signature, 'hex')));
-      const userAuth = new AccountAuthenticatorEd25519(userPubKey, userSig);
-      
-      // Sign with protocol account using the multi-agent transaction
-      const protocolAuth = aptos.transaction.sign({
-        signer: protocolAccount,
-        transaction: multiAgentTxn
-      });
-      
-      // Submit multi-agent transaction
-      const txResponse = await aptos.transaction.submit.multiAgent({
-        transaction: multiAgentTxn,
-        senderAuthenticator: userAuth,
-        additionalSignersAuthenticators: [protocolAuth],
-      });
-      
-      // Wait for confirmation
-      await aptos.waitForTransaction({ transactionHash: txResponse.hash });
-      
-      return {
-        statusCode: 200,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          success: true,
-          transactionHash: txResponse.hash,
-          explorerUrl: `https://explorer.aptoslabs.com/txn/${txResponse.hash}?network=testnet`
-        })
-      };
-    }
-
-    // Original flow: validate request and build transaction
-    if (!positionId || !userAddress) {
+    if (!positionId || !userAddress || !rawTransaction) {
       return {
         statusCode: 400,
         headers: {
@@ -105,7 +55,7 @@ exports.handler = async (event, context) => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ 
-          error: 'Missing required fields: positionId, userAddress' 
+          error: 'Missing required fields: positionId, userAddress, rawTransaction' 
         })
       };
     }
@@ -116,7 +66,7 @@ exports.handler = async (event, context) => {
       resourceType: `${CONTRACT_ADDRESS}::bucket_protocol::Protocol`
     });
 
-    // Find position by index (positions array doesn't have 'id' field)
+    // Find position by index
     const positionIndex = parseInt(positionId);
     const position = resource.positions?.[positionIndex];
 
@@ -159,24 +109,9 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Build raw transaction on server side
-    const rawTxn = await aptos.transaction.build.multiAgent({
-      sender: userAddress,
-      secondarySignerAddresses: [protocolAccount.accountAddress],
-      data: {
-        function: `${CONTRACT_ADDRESS}::bucket_protocol::close_position`,
-        functionArguments: [parseInt(positionId)],
-      },
-      options: {
-        expireTimestamp: Math.floor(Date.now() / 1000) + 600, // 10 minutes from now
-      }
-    });
-
-    // Sign with protocol account
-    const protocolAuthenticator = aptos.transaction.sign({
-      signer: protocolAccount,
-      transaction: rawTxn
-    });
+    // Sign the raw transaction with protocol account
+    const rawTxnBytes = new Uint8Array(Buffer.from(rawTransaction, 'hex'));
+    const protocolSignatureBytes = protocolAccount.sign(rawTxnBytes);
 
     return {
       statusCode: 200,
@@ -186,10 +121,9 @@ exports.handler = async (event, context) => {
       },
       body: JSON.stringify({
         success: true,
-        rawTransaction: Buffer.from(rawTxn.bcsToBytes()).toString('hex'),
         protocolSignature: {
-          public_key: Buffer.from(protocolAuthenticator.public_key.toUint8Array()).toString('hex'),
-          signature: Buffer.from(protocolAuthenticator.signature.toUint8Array()).toString('hex')
+          public_key: Buffer.from(protocolAccount.publicKey.toUint8Array()).toString('hex'),
+          signature: Buffer.from(protocolSignatureBytes.toUint8Array()).toString('hex')
         },
         protocolAddress: protocolAccount.accountAddress.toString()
       })

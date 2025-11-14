@@ -4,10 +4,7 @@ const {
   AptosConfig, 
   Network,
   Account,
-  Ed25519PrivateKey,
-  AccountAuthenticator,
-  Deserializer,
-  RawTransaction
+  Ed25519PrivateKey
 } = require("@aptos-labs/ts-sdk");
 
 // Configuration
@@ -48,10 +45,10 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { positionId, userAddress, rawTransaction } = JSON.parse(event.body);
+    const { positionId, userAddress } = JSON.parse(event.body);
 
     // Validate request
-    if (!positionId || !userAddress || !rawTransaction) {
+    if (!positionId || !userAddress) {
       return {
         statusCode: 400,
         headers: {
@@ -59,19 +56,19 @@ exports.handler = async (event, context) => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ 
-          error: 'Missing required fields: positionId, userAddress, rawTransaction' 
+          error: 'Missing required fields: positionId, userAddress' 
         })
       };
     }
 
     // Verify position exists and belongs to user
-    const positionResource = await aptos.getAccountResource({
+    const resource = await aptos.getAccountResource({
       accountAddress: CONTRACT_ADDRESS,
-      resourceType: `${CONTRACT_ADDRESS}::cresca_contract::Position`
+      resourceType: `${CONTRACT_ADDRESS}::cresca_contract::ProtocolState`
     });
 
-    const position = positionResource.positions?.find(
-      p => p.id === positionId && p.owner === userAddress
+    const position = resource.positions?.find(
+      p => p.id === parseInt(positionId) && p.owner === userAddress
     );
 
     if (!position) {
@@ -100,21 +97,24 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Deserialize the raw transaction
-    const deserializer = new Deserializer(new Uint8Array(Buffer.from(rawTransaction, 'hex')));
-    const transaction = RawTransaction.deserialize(deserializer);
+    // Build raw transaction on server side
+    const rawTxn = await aptos.transaction.build.multiAgent({
+      sender: userAddress,
+      secondarySignerAddresses: [protocolAccount.accountAddress],
+      data: {
+        function: `${CONTRACT_ADDRESS}::cresca_contract::close_position`,
+        functionArguments: [parseInt(positionId)],
+      },
+      options: {
+        expireTimestamp: Math.floor(Date.now() / 1000) + 600, // 10 minutes from now
+      }
+    });
 
     // Sign with protocol account
     const protocolAuthenticator = aptos.transaction.sign({
       signer: protocolAccount,
-      transaction
+      transaction: rawTxn
     });
-
-    // Extract signature
-    const protocolSignature = {
-      public_key: protocolAuthenticator.public_key,
-      signature: protocolAuthenticator.signature
-    };
 
     return {
       statusCode: 200,
@@ -124,9 +124,10 @@ exports.handler = async (event, context) => {
       },
       body: JSON.stringify({
         success: true,
+        rawTransaction: Buffer.from(rawTxn.bcsToBytes()).toString('hex'),
         protocolSignature: {
-          public_key: Buffer.from(protocolSignature.public_key.toUint8Array()).toString('hex'),
-          signature: Buffer.from(protocolSignature.signature.toUint8Array()).toString('hex')
+          public_key: Buffer.from(protocolAuthenticator.public_key.toUint8Array()).toString('hex'),
+          signature: Buffer.from(protocolAuthenticator.signature.toUint8Array()).toString('hex')
         },
         protocolAddress: protocolAccount.accountAddress.toString()
       })

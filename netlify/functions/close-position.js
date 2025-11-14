@@ -45,40 +45,36 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { positionId, userAddress, userSignatureHex } = JSON.parse(event.body);
+    const { positionId, userAddress, userSignatureHex, rawTransactionHex } = JSON.parse(event.body);
 
     // If user signature is provided, complete and submit the transaction
-    if (userSignatureHex) {
-      const {Ed25519PublicKey, Ed25519Signature, AccountAuthenticatorEd25519} = require('@aptos-labs/ts-sdk');
+    if (userSignatureHex && rawTransactionHex) {
+      const {Ed25519PublicKey, Ed25519Signature, AccountAuthenticatorEd25519, RawTransaction, Deserializer, MultiAgentRawTransaction, AccountAddress} = require('@aptos-labs/ts-sdk');
       
-      // Rebuild the same transaction (must match exactly what was sent to user)
-      const rawTxn = await aptos.transaction.build.multiAgent({
-        sender: userAddress,
-        secondarySignerAddresses: [protocolAccount.accountAddress],
-        data: {
-          function: `${CONTRACT_ADDRESS}::bucket_protocol::close_position`,
-          functionArguments: [parseInt(positionId)],
-        },
-        options: {
-          // Use a longer expiration to ensure it matches
-          expireTimestamp: Math.floor(Date.now() / 1000) + 600,
-        }
-      });
+      // Deserialize the SAME raw transaction that user signed
+      const rawTxnBytes = new Uint8Array(Buffer.from(rawTransactionHex, 'hex'));
+      const rawTxn = RawTransaction.deserialize(new Deserializer(rawTxnBytes));
+      
+      // Create multi-agent transaction wrapper
+      const multiAgentTxn = new MultiAgentRawTransaction(
+        rawTxn,
+        [AccountAddress.from(protocolAccount.accountAddress)]
+      );
       
       // Reconstruct user authenticator from signature
       const userPubKey = new Ed25519PublicKey(new Uint8Array(Buffer.from(userSignatureHex.publicKey, 'hex')));
       const userSig = new Ed25519Signature(new Uint8Array(Buffer.from(userSignatureHex.signature, 'hex')));
       const userAuth = new AccountAuthenticatorEd25519(userPubKey, userSig);
       
-      // Sign with protocol account
+      // Sign with protocol account using the multi-agent transaction
       const protocolAuth = aptos.transaction.sign({
         signer: protocolAccount,
-        transaction: rawTxn
+        transaction: multiAgentTxn
       });
       
       // Submit multi-agent transaction
       const txResponse = await aptos.transaction.submit.multiAgent({
-        transaction: rawTxn,
+        transaction: multiAgentTxn,
         senderAuthenticator: userAuth,
         additionalSignersAuthenticators: [protocolAuth],
       });

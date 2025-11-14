@@ -189,6 +189,7 @@ async function closePositionViaAPI(positionId, userAccount, aptos) {
       body: JSON.stringify({
         positionId: positionId.toString(),
         userAddress: userAccount.accountAddress.toString(),
+        rawTransactionHex: result.rawTransaction, // Send back the same transaction
         userSignatureHex: {
           publicKey: Buffer.from(userAccount.publicKey.toUint8Array()).toString('hex'),
           signature: Buffer.from(userSignature.toUint8Array()).toString('hex'),

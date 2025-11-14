@@ -67,9 +67,9 @@ exports.handler = async (event, context) => {
       resourceType: `${CONTRACT_ADDRESS}::bucket_protocol::Protocol`
     });
 
-    const position = resource.positions?.find(
-      p => p.id === parseInt(positionId) && p.owner === userAddress
-    );
+    // Find position by index (positions array doesn't have 'id' field)
+    const positionIndex = parseInt(positionId);
+    const position = resource.positions?.[positionIndex];
 
     if (!position) {
       return {
@@ -79,12 +79,25 @@ exports.handler = async (event, context) => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ 
-          error: 'Position not found or does not belong to user' 
+          error: `Position ${positionId} not found. Total positions: ${resource.positions?.length || 0}` 
         })
       };
     }
 
-    if (!position.is_active) {
+    if (position.owner !== userAddress) {
+      return {
+        statusCode: 403,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          error: 'Position does not belong to user' 
+        })
+      };
+    }
+
+    if (!position.active) {
       return {
         statusCode: 400,
         headers: {

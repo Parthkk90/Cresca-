@@ -45,9 +45,53 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { positionId, userAddress } = JSON.parse(event.body);
+    const { positionId, userAddress, userSignature } = JSON.parse(event.body);
 
-    // Validate request
+    // If user signature is provided, submit the full transaction
+    if (userSignature) {
+      // Reconstruct authenticators and submit
+      const {Ed25519PublicKey, Ed25519Signature, AccountAuthenticatorEd25519} = require('@aptos-labs/ts-sdk');
+      
+      // Deserialize raw transaction
+      const rawTxnBytes = new Uint8Array(Buffer.from(userSignature.rawTransaction, 'hex'));
+      const {RawTransaction, Deserializer} = require('@aptos-labs/ts-sdk');
+      const rawTxn = RawTransaction.deserialize(new Deserializer(rawTxnBytes));
+      
+      // Reconstruct user authenticator
+      const userPubKey = new Ed25519PublicKey(new Uint8Array(Buffer.from(userSignature.publicKey, 'hex')));
+      const userSig = new Ed25519Signature(new Uint8Array(Buffer.from(userSignature.signature, 'hex')));
+      const userAuth = new AccountAuthenticatorEd25519(userPubKey, userSig);
+      
+      // Reconstruct protocol authenticator
+      const protocolPubKey = new Ed25519PublicKey(new Uint8Array(Buffer.from(userSignature.protocolPublicKey, 'hex')));
+      const protocolSig = new Ed25519Signature(new Uint8Array(Buffer.from(userSignature.protocolSignature, 'hex')));
+      const protocolAuth = new AccountAuthenticatorEd25519(protocolPubKey, protocolSig);
+      
+      // Submit transaction
+      const txResponse = await aptos.transaction.submit.multiAgent({
+        transaction: rawTxn,
+        senderAuthenticator: userAuth,
+        additionalSignersAuthenticators: [protocolAuth],
+      });
+      
+      // Wait for confirmation
+      await aptos.waitForTransaction({ transactionHash: txResponse.hash });
+      
+      return {
+        statusCode: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          success: true,
+          transactionHash: txResponse.hash,
+          explorerUrl: `https://explorer.aptoslabs.com/txn/${txResponse.hash}?network=testnet`
+        })
+      };
+    }
+
+    // Original flow: validate request and build transaction
     if (!positionId || !userAddress) {
       return {
         statusCode: 400,

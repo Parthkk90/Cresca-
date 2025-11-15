@@ -1,0 +1,24 @@
+{
+  "name": "close-position-backend",
+  "version": "1.0.0",
+  "description": "Backend service for co-signing close_position transactions",
+  "main": "close-position-service.js",
+  "scripts": {
+    "start": "node close-position-service.js",
+    "dev": "nodemon close-position-service.js",
+    "build": "echo 'No build needed for Netlify Functions'"
+  },
+  "dependencies": {
+    "@aptos-labs/ts-sdk": "^1.0.0",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0",
+    "netlify-cli": "^17.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

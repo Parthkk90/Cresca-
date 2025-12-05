@@ -1,4 +1,6 @@
 // Cresca Atomic Swap - Bidirectional peer-to-peer token swap contract
+// insted taking the amount_y_expected from application, have a api call to pyth network to get the current real value
+
 module cresca::swap {
     use std::signer;
     use std::string::String;

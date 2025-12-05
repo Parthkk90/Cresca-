@@ -9,7 +9,8 @@ cresca = "0x33ec41711fe3c92c3f1a010909342e1c2c5de962e50645c8f8c8eda119122d6b"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-core.git"
-rev = "mainnet"
+rev = "aptos-node-v1.8.0"
 subdir = "aptos-move/framework/aptos-framework"
 
 [dev-dependencies]
+    
